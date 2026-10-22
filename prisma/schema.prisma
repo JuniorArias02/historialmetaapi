@@ -1,0 +1,105 @@
+// Modelo derivado de datos_cobros.json:
+//   Entidad (cliente) 1─N Proyecto 1─N Linea (número WhatsApp) 1─N Pago
+// Los datos de cabecera del informe (título, periodo, tasa COP, pie de página)
+// se guardan en ConfiguracionInforme.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id             Int      @id @default(autoincrement())
+  nombre         String   @db.VarChar(120)
+  correo         String   @unique @db.VarChar(191)
+  contrasenaHash String   @map("contrasena_hash") @db.VarChar(255)
+  activo         Boolean  @default(true)
+  creadoEn       DateTime @default(now()) @map("creado_en")
+  actualizadoEn  DateTime @updatedAt @map("actualizado_en")
+
+  @@map("usuarios")
+}
+
+model Entidad {
+  id            Int        @id @default(autoincrement())
+  nombre        String     @unique @db.VarChar(191)
+  creadoEn      DateTime   @default(now()) @map("creado_en")
+  actualizadoEn DateTime   @updatedAt @map("actualizado_en")
+  proyectos     Proyecto[]
+
+  @@map("entidades")
+}
+
+model Proyecto {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(191)
+  entidadId     Int      @map("entidad_id")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+  entidad       Entidad  @relation(fields: [entidadId], references: [id], onDelete: Restrict)
+  lineas        Linea[]
+
+  @@unique([entidadId, nombre])
+  @@map("proyectos")
+}
+
+model Linea {
+  id            Int      @id @default(autoincrement())
+  // Texto completo tal como llega del origen, p. ej. "3228070317 Sahium (Social estado)".
+  nombre        String   @db.VarChar(191)
+  proyectoId    Int      @map("proyecto_id")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+  proyecto      Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Restrict)
+  pagos         Pago[]
+
+  @@unique([proyectoId, nombre])
+  @@map("lineas")
+}
+
+model Pago {
+  id       Int      @id @default(autoincrement())
+  lineaId  Int      @map("linea_id")
+  fecha    DateTime @db.Date
+  // Monto en USD. 4 decimales para coincidir con la aritmética del frontend (1/10.000 USD).
+  monto         Decimal  @db.Decimal(12, 4)
+  // Trazabilidad de la importación: archivo de origen ("manual" para altas a mano) y posición en él.
+  origen        String   @default("importado") @db.VarChar(255)
+  ubicacion     String   @default("") @db.VarChar(255)
+  // Datos generados para probar comparaciones; nunca representan pagos reales.
+  ficticio      Boolean  @default(false)
+  editado       Boolean  @default(false)
+  nota          String   @default("") @db.VarChar(500)
+  // Lista de textos con advertencias de calidad detectadas al importar (null = ninguna).
+  advertencias  Json?
+  // Valores tal como llegaron en el archivo, para poder restaurarlos tras una edición.
+  original      Json?
+  creadoEn      DateTime @default(now()) @map("creado_en")
+  actualizadoEn DateTime @default(now()) @updatedAt @map("actualizado_en")
+  linea         Linea    @relation(fields: [lineaId], references: [id], onDelete: Restrict)
+
+  // Sin restricción única: el origen tiene pagos legítimos de la misma línea y fecha.
+  @@index([lineaId, fecha])
+  @@index([fecha])
+  @@index([ficticio])
+  @@map("pagos")
+}
+
+// Una sola fila (id = 1) con los datos de cabecera del informe.
+model ConfiguracionInforme {
+  id            Int      @id @default(1)
+  periodo       String   @db.VarChar(60)
+  referencia    String   @default("") @db.VarChar(120)
+  titulo        String   @db.VarChar(191)
+  subtitulo     String   @db.VarChar(191)
+  moneda        String   @default("USD") @db.Char(3)
+  tasaCambioCop Decimal  @map("tasa_cambio_cop") @db.Decimal(12, 2)
+  piePagina     String   @map("pie_pagina") @db.Text
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+
+  @@map("configuracion_informe")
+}

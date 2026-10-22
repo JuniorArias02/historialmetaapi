@@ -1,0 +1,26 @@
+# Dependencias y compilado
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Variables de entorno: nunca se suben. Solo la plantilla .env.example.
+.env
+.env.*
+!.env.example
+
+# Datos reales de cobros de clientes para el seeder: se copian al servidor a mano.
+datos_cobros.json
+
+# Respaldos de la base de datos (pueden contener datos de clientes)
+*.sql
+!prisma/migrations/**/*.sql
+
+# Registros y archivos del sistema / editores
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
